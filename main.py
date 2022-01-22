@@ -1,118 +1,131 @@
 
+
+class Cell(object):
+    """creates a cell to be placed on the game board"""
+    def __init__(self, id):
+        self.id = id
+        self.taken = False
+
+
 class Game(object):
+    """Keeps track of the board, player turns, and if the game has finished and if it is a drawn game"""
     def __init__(self):
-        self.board = { 1:"1", # 1-3 are the first row 
-                       2:"2",
-                       3:"3",
-                       4:"4", # 4-6 are the second row
-                       5:"5",
-                       6:"6",
-                       7:"7", # 7-9 are the third row
-                       8:"8",
-                       9:"9", }
-        # self.keys = [key for key, value in self.board.items()]
-        self.player_x = True
-        self.player_o = False
+        self.board = []
+        self.cells = []
+        self.player_x_turn = True
+        self.gameover = False
+        self.draw = False
+
+
+    def create_board(self, size):
+        "Creats a matrix with cell objects to keep track of player moves"
+        id = 1
+        for row in range(size):
+            self.board.append([])
+            for col in range(size):
+                cell = Cell(id)
+                self.cells.append(cell)
+                self.board[row].append(cell)
+                id += 1
 
 
     def update_game_state(self):
+        "Handles input from the play and changes the game state accordingly"
         self.draw_board()
         user_input = None
         while user_input == None:
             try:
                 user_input = int(input("please select the place you would like to mark: "))
-            except ValueError:
+                
+            except:
                 print("input must be a number between 1 and 9")
 
-            # check if the spot has already been marked by a player. 
-            if self.board[user_input] == "X" or self.board[user_input] == "O":
+            try:
+                # check if the spot has already been marked by a player.
+                if self.cells[user_input - 1].taken:
+                    user_input = None
+                    print("That spot is already taken! please pick a new spot!")
+            except:
                 user_input = None
-                print("That spot is already taken! please pick a new spot!")
 
-        if self.player_x == True: # mark the board
-            self.board[user_input] = "X"
+        self.cells[user_input - 1].taken = True   
+        if self.player_x_turn:
+            self.cells[user_input - 1].id = "X"
         else:
-            self.board[user_input] = "O"
+            self.cells[user_input - 1].id = "O"
 
-        game_over = self.win_logic() # check if the game has ended
-        self.switch_turn() # set the turn
-        return game_over
+        self.gameover = self.win_logic() # check if the game has ended
+        
+        if not self.gameover:
+            self.switch_turn()
+        
 
 
     def draw_board(self):
-        # draws the game board
-        divider = "------------"
-        position = 1
-        # make rows
-        for j in range(3):
-            row = ''
-            for i in range(3):
-                cell = f" {self.board[position]} " # update cell
-                if i < 2:
-                    row = row + cell + "|" # formatting
+        """Draws the board to the Terminal"""
+        divider = '------------'
+        for row in range(len(self.board)):
+            row_to_draw = ''
+            for col in range(len(self.board)):
+                cell = f' {self.board[row][col].id} '
+                if col < 2:
+                    row_to_draw = row_to_draw + cell + "|"
                 else:
-                    row = row + cell
-                position += 1 # keep track of position
-    
-            print(row)
+                    row_to_draw = row_to_draw + cell
+        
+            print(row_to_draw)
             print(divider)
 
 
     def switch_turn(self): # This is called in update_board
-        if self.player_x == True:
-            self.player_x = False
-            self.player_o = True
+        """Changes the Turn"""
+        if self.player_x_turn:
+            self.player_x_turn = False
+            print("It is now O's turn")
         else:
-            self.player_x = True
-            self.player_o = False
+            self.player_x_turn = True
+            print("It is now X's turn")
 
 
-    def win_logic(self): # This is called in update_board
-        x = "XXX"
-        o = "OOO"
-        row_one = self.board[1] + self.board[2] + self.board[3]
-        row_two = self.board[4] + self.board[5] + self.board[6]
-        row_three = self.board[7] + self.board[8] + self.board[9]
-
-        col_one = self.board[1] + self.board[4] + self.board[7]
-        col_two = self.board[2] + self.board[5] + self.board[8]
-        col_three = self.board[3] + self.board[6] + self.board[9]
-
-        dia_one = self.board[1] + self.board[5] + self.board[9]
-        dia_two = self.board[3] + self.board[5] + self.board[7]
-
-        win_states = [row_one, row_two, row_three, col_one, col_two, col_three, dia_one, dia_two]
-
-        # check for a winning board state
-        for state in win_states:
-            if state == x:
-                print("player X has won!")
+    def win_logic(self):
+        """Checks the board for a winning or drawn game state"""
+        for row in self.board:
+            if all([cell.id == 'X' for cell in row]) or all([cell.id == 'O' for cell in row]):
                 return True
-            elif state == o:
-                print("player O has won!")
+            
+        for col in range(len(self.board)):
+            column = [row[col] for row in self.board] # get values from the columns of the game board
+            if all([cell.id == 'X' for cell in column]) or all([cell.id == 'O' for cell in column]):
                 return True
+
+        # get values from cells along the diagonal of the game board
+        lr_diag = [self.board[x][x] for x in range(len(self.board))]
+        rl_diag = [self.board[x][len(self.board) - x -1] for x in range(len(self.board))]
+
+        if all([cell.id == 'X' for cell in lr_diag]) or all([cell.id == 'X' for cell in rl_diag]) or all([cell.id == 'O' for cell in lr_diag]) or all([cell.id == 'O' for cell in rl_diag]):
+            return True
+
+        # Check for a Drawn Game
+        if all([cell.taken for cell in self.cells]):
+            self.draw = True
+            return True
         
-        # Check for Draw
-        values = [value for key, value in self.board.items()]
-        keys = [str(key) for key, value in self.board.items()]
-        count = 0
-        for key in keys:
-            if key in values:
-                count = 0
-                # print(f"Broke at {key}")
-                break
-            else:
-                count += 1
-            if count == 9:
-                print("the game is a draw")
-                return True
-        return False
-
 
     def play_game(self):
-        finished = False
-        while not finished:
-            finished = self.update_game_state()
+        """Main game loop"""
+        self.create_board(3)
+        while not self.gameover:
+            self.update_game_state()
+        
+        self.draw_board() # Shows the final game board
+
+        if self.draw:
+            print("The game has ended in a draw")
+        else:
+            if self.player_x_turn == True:
+                print("Player X Wins!")
+            else:
+                print("Player O Wins!")
         
             
 my_board = Game()
